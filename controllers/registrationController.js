@@ -315,14 +315,10 @@ class RegistrationController {
     }
   }
 
-  // Delete a registration (soft delete by updating status)
+ // Delete a registration (permanent/hard delete)
   async deleteRegistration(req, res) {
     try {
-      const registration = await Registration.findByIdAndUpdate(
-        req.params.id,
-        { status: 'rejected' },
-        { new: true }
-      );
+      const registration = await Registration.findByIdAndDelete(req.params.id);
 
       if (!registration) {
         return res.status(404).json({
@@ -333,7 +329,12 @@ class RegistrationController {
 
       res.status(200).json({
         success: true,
-        message: 'Registration deleted successfully'
+        message: 'Registration permanently deleted successfully',
+        data: {
+          id: registration._id,
+          email: registration.email,
+          registrationType: registration.registrationType
+        }
       });
 
     } catch (error) {
