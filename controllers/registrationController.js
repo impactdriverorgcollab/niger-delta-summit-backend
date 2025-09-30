@@ -1,6 +1,5 @@
 const { validationResult } = require('express-validator');
 const Registration = require('../models/Registration');
-const emailService = require('../services/emailService');
 
 class RegistrationController {
   // Create a new registration
@@ -47,16 +46,6 @@ class RegistrationController {
       // Create new registration
       const registration = new Registration(registrationData);
       await registration.save();
-
-      // Send confirmation email to registrant (don't wait for it)
-      emailService.sendConfirmationEmail(registration).catch(err => {
-        console.error('Failed to send confirmation email:', err);
-      });
-
-      // Send admin notification (don't wait for it)
-      emailService.sendAdminNotification(registration).catch(err => {
-        console.error('Failed to send admin notification:', err);
-      });
 
       // Return success response
       res.status(201).json({
