@@ -8,7 +8,6 @@ dotenv.config();
 
 const connectDatabase = require('./config/database');
 const registrationRoutes = require('./routes/registrations');
-const emailService = require('./services/emailService');
 const { generalRateLimit, securityHeaders, requestLogger } = require('./middleware/security');
 
 
@@ -19,12 +18,6 @@ const app = express();
 // Connect to database
 connectDatabase();
 
-// Verify email service on startup
-emailService.verifyConnection().then(isReady => {
-  if (!isReady) {
-    console.warn('⚠️  Email service is not properly configured. Emails will fail to send.');
-  }
-});
 
 // Security middleware
 app.use(helmet({
@@ -184,7 +177,6 @@ const server = app.listen(PORT, () => {
   console.log(`📡 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Database: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
-  console.log(`📧 Email Service: ${process.env.ZOHO_MAIL_USER ? 'Configured' : 'Not configured'}`);
   console.log('\n📚 API Documentation: http://localhost:' + PORT + '/api');
   console.log('🏥 Health Check: http://localhost:' + PORT + '/health');
   console.log('\n⚡ Ready to accept registrations!\n');
