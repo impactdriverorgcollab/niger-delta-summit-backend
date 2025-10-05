@@ -48,9 +48,37 @@ const registrationSchema = new mongoose.Schema({
   },
   
   // Series Venture specific fields
+  ventureStage: {
+    type: String,
+    enum: ['idea', 'prototype', 'pilot', 'early-revenue', 'scaling', ''],
+    default: ''
+  },
+  location: {
+    type: String,
+    trim: true,
+    maxlength: 200,
+    default: ''
+  },
+  teamSize: {
+    type: Number,
+    min: 1,
+    default: null
+  },
   projectDescription: {
     type: String,
-    maxlength: 1000,
+    minlength: 100,
+    maxlength: 500,
+    default: ''
+  },
+  fundingNeeds: {
+    type: String,
+    enum: ['under-5m', '5m-10m', '10m-25m', '25m-50m', 'over-50m', ''],
+    default: ''
+  },
+  guidedLabsInterest: {
+    type: String,
+    minlength: 50,
+    maxlength: 500,
     default: ''
   },
   
@@ -76,10 +104,12 @@ const registrationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster queries
+// Indexes for faster queries
 registrationSchema.index({ email: 1 });
 registrationSchema.index({ registrationType: 1 });
 registrationSchema.index({ submissionDate: -1 });
+registrationSchema.index({ ventureStage: 1 });
+registrationSchema.index({ fundingNeeds: 1 });
 
 // Virtual for formatted registration type
 registrationSchema.virtual('registrationTypeFormatted').get(function() {
@@ -100,6 +130,30 @@ registrationSchema.methods.getSponsorshipTierDescription = function() {
     'demoday': 'Demo Day Sponsor (₦5m-10m / $3k-6.6k)'
   };
   return tierMap[this.sponsorshipTier] || '';
+};
+
+// Method to get venture stage description
+registrationSchema.methods.getVentureStageDescription = function() {
+  const stageMap = {
+    'idea': 'Idea Stage',
+    'prototype': 'Prototype/MVP',
+    'pilot': 'Pilot/Testing',
+    'early-revenue': 'Early Revenue',
+    'scaling': 'Scaling'
+  };
+  return stageMap[this.ventureStage] || '';
+};
+
+// Method to get funding needs description
+registrationSchema.methods.getFundingNeedsDescription = function() {
+  const fundingMap = {
+    'under-5m': 'Under ₦5M',
+    '5m-10m': '₦5M - ₦10M',
+    '10m-25m': '₦10M - ₦25M',
+    '25m-50m': '₦25M - ₦50M',
+    'over-50m': 'Over ₦50M'
+  };
+  return fundingMap[this.fundingNeeds] || '';
 };
 
 module.exports = mongoose.model('Registration', registrationSchema);

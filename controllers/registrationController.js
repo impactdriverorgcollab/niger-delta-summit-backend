@@ -21,10 +21,27 @@ class RegistrationController {
 
       // Create registration data
       const registrationData = {
-        ...req.body,
+        fullName: req.body.fullName,
+        email: req.body.email,
+        phone: req.body.phone,
+        organization: req.body.organization || '',
+        registrationType: req.body.registrationType,
         ipAddress,
         userAgent
       };
+
+      // Add type-specific fields
+      if (req.body.registrationType === 'anchor-partner') {
+        registrationData.sponsorshipTier = req.body.sponsorshipTier;
+        registrationData.participationType = req.body.participationType;
+      } else if (req.body.registrationType === 'series-venture') {
+        registrationData.ventureStage = req.body.ventureStage;
+        registrationData.location = req.body.location;
+        registrationData.teamSize = req.body.teamSize;
+        registrationData.projectDescription = req.body.projectDescription;
+        registrationData.fundingNeeds = req.body.fundingNeeds;
+        registrationData.guidedLabsInterest = req.body.guidedLabsInterest;
+      }
 
       // Check if email already exists for this registration type
       const existingRegistration = await Registration.findOne({
@@ -95,6 +112,12 @@ class RegistrationController {
       if (req.query.sponsorshipTier) {
         filter.sponsorshipTier = req.query.sponsorshipTier;
       }
+      if (req.query.ventureStage) {
+        filter.ventureStage = req.query.ventureStage;
+      }
+      if (req.query.fundingNeeds) {
+        filter.fundingNeeds = req.query.fundingNeeds;
+      }
 
       // Date range filtering
       if (req.query.startDate || req.query.endDate) {
@@ -114,7 +137,8 @@ class RegistrationController {
           { fullName: searchRegex },
           { email: searchRegex },
           { organization: searchRegex },
-          { phone: searchRegex }
+          { phone: searchRegex },
+          { location: searchRegex }
         ];
       }
 
@@ -281,6 +305,28 @@ class RegistrationController {
         }
       ]);
 
+      // Get venture stage statistics
+      const ventureStageStats = await Registration.aggregate([
+        { $match: { registrationType: 'series-venture' } },
+        {
+          $group: {
+            _id: '$ventureStage',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      // Get funding needs statistics
+      const fundingStats = await Registration.aggregate([
+        { $match: { registrationType: 'series-venture' } },
+        {
+          $group: {
+            _id: '$fundingNeeds',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
       // Recent registrations (last 7 days)
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -301,6 +347,8 @@ class RegistrationController {
             approvedRegistrations: 0
           },
           sponsorshipTiers: tierStats,
+          ventureStages: ventureStageStats,
+          fundingNeeds: fundingStats,
           recentRegistrations: recentCount
         }
       });
@@ -315,7 +363,7 @@ class RegistrationController {
     }
   }
 
- // Delete a registration (permanent/hard delete)
+  // Delete a registration (permanent/hard delete)
   async deleteRegistration(req, res) {
     try {
       const registration = await Registration.findByIdAndDelete(req.params.id);
