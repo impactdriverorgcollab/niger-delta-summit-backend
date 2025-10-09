@@ -16,36 +16,18 @@ const app = express();
 // Connect to database
 connectDatabase();
 
-// ===== CORS MUST COME FIRST (BEFORE OTHER MIDDLEWARE) =====
-const corsOptions = {
-  origin: '*', // Allow all origins
-  credentials: false, // Must be false when origin is '*'
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours - cache preflight requests
-};
+// IMPORTANT: CORS must come BEFORE other middleware
+// Simple CORS configuration - Allow all origins
+app.use(cors());
 
-app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
-
-// Security middleware (AFTER CORS)
+// Security middleware (relaxed for CORS compatibility)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  }
+  contentSecurityPolicy: false, // Disable CSP to avoid conflicts
 }));
 
-// Custom security headers
-app.use(securityHeaders);
+// Custom security headers (but avoid overriding CORS headers)
+// app.use(securityHeaders); // COMMENT THIS OUT if it overrides CORS headers
 
 // Request logging
 app.use(requestLogger);
@@ -108,12 +90,11 @@ app.get('/api', (req, res) => {
 // API routes
 app.use('/api/registrations', registrationRoutes);
 
-// 404 handler for undefined routes (FIXED SYNTAX)
-app.use('*', (req, res) => {
+// 404 handler for undefined routes
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'API endpoint not found',
-    requestedPath: req.originalUrl,
     availableEndpoints: {
       health: 'GET /health',
       api_docs: 'GET /api',
@@ -122,22 +103,9 @@ app.use('*', (req, res) => {
   });
 });
 
-// Global error handling middleware (ENSURE CORS HEADERS ARE INCLUDED)
+// Global error handling middleware
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
-  
-  // Ensure CORS headers are present even in errors
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  
-  // CORS errors
-  if (error.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      success: false,
-      message: 'CORS policy violation. Origin not allowed.'
-    });
-  }
   
   // JSON parsing errors
   if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
@@ -171,7 +139,6 @@ const server = app.listen(PORT, () => {
   console.log(`📡 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Database: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
-  console.log(`🔓 CORS: Enabled for all origins (*)`);
   console.log('\n📚 API Documentation: http://localhost:' + PORT + '/api');
   console.log('🏥 Health Check: http://localhost:' + PORT + '/health');
   console.log('\n⚡ Ready to accept registrations!\n');
