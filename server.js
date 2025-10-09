@@ -10,16 +10,28 @@ const connectDatabase = require('./config/database');
 const registrationRoutes = require('./routes/registrations');
 const { generalRateLimit, securityHeaders, requestLogger } = require('./middleware/security');
 
-
-
 // Initialize Express app
 const app = express();
 
 // Connect to database
 connectDatabase();
 
+// ===== CORS MUST COME FIRST (BEFORE OTHER MIDDLEWARE) =====
+const corsOptions = {
+  origin: '*', // Allow all origins
+  credentials: false, // Must be false when origin is '*'
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours - cache preflight requests
+};
 
-// Security middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Security middleware (AFTER CORS)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
@@ -31,30 +43,6 @@ app.use(helmet({
     },
   }
 }));
-
-// CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = process.env.CORS_ORIGIN ? 
-      process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
-      ['http://localhost:3000', 'http://localhost:3001'];
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-};
-
-app.use(cors(corsOptions));
 
 // Custom security headers
 app.use(securityHeaders);
@@ -120,11 +108,12 @@ app.get('/api', (req, res) => {
 // API routes
 app.use('/api/registrations', registrationRoutes);
 
-// 404 handler for undefined routes
-app.use('/{*notFound}', (req, res) => {
+// 404 handler for undefined routes (FIXED SYNTAX)
+app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'API endpoint not found',
+    requestedPath: req.originalUrl,
     availableEndpoints: {
       health: 'GET /health',
       api_docs: 'GET /api',
@@ -133,9 +122,14 @@ app.use('/{*notFound}', (req, res) => {
   });
 });
 
-// Global error handling middleware
+// Global error handling middleware (ENSURE CORS HEADERS ARE INCLUDED)
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
+  
+  // Ensure CORS headers are present even in errors
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
   
   // CORS errors
   if (error.message === 'Not allowed by CORS') {
@@ -177,6 +171,7 @@ const server = app.listen(PORT, () => {
   console.log(`📡 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Database: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
+  console.log(`🔓 CORS: Enabled for all origins (*)`);
   console.log('\n📚 API Documentation: http://localhost:' + PORT + '/api');
   console.log('🏥 Health Check: http://localhost:' + PORT + '/health');
   console.log('\n⚡ Ready to accept registrations!\n');
