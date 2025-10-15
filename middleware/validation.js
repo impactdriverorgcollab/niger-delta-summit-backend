@@ -55,7 +55,7 @@ const registrationValidation = [
     .if(body('registrationType').equals('series-venture'))
     .notEmpty()
     .withMessage('Project description is required for series ventures')
-    .isLength({ min: 50, max: 1000 })
+    .isLength({ min: 10, max: 10000 })
     .withMessage('Project description must be between 50 and 1000 characters'),
 
   // Clean up conditional fields
