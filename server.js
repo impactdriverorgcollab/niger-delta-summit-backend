@@ -19,6 +19,7 @@ connectDatabase();
 // IMPORTANT: CORS must come BEFORE other middleware
 // Simple CORS configuration - Allow all origins
 app.use(cors());
+app.set('trust proxy', 1);
 
 // Security middleware (relaxed for CORS compatibility)
 app.use(helmet({

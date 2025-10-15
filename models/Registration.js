@@ -26,16 +26,12 @@ const registrationSchema = new mongoose.Schema({
     trim: true,
     maxlength: 200
   },
-  
-  // Registration Type
   registrationType: {
     type: String,
     required: true,
     enum: ['anchor-partner', 'series-venture', 'attend'],
     default: 'attend'
   },
-  
-  // Anchor Partner specific fields
   sponsorshipTier: {
     type: String,
     enum: ['tier1', 'tier2', 'community', 'demoday', ''],
@@ -46,8 +42,6 @@ const registrationSchema = new mongoose.Schema({
     enum: ['sponsor', 'speaker', 'exhibitor', 'multiple', ''],
     default: ''
   },
-  
-  // Series Venture specific fields
   ventureStage: {
     type: String,
     enum: ['idea', 'prototype', 'pilot', 'early-revenue', 'scaling', ''],
@@ -66,23 +60,42 @@ const registrationSchema = new mongoose.Schema({
   },
   projectDescription: {
     type: String,
-    minlength: 100,
-    maxlength: 500,
-    default: ''
-  },
-  fundingNeeds: {
-    type: String,
-    enum: ['under-5m', '5m-10m', '10m-25m', '25m-50m', 'over-50m', ''],
+    trim: true,
+    validate: {
+      validator: function (value) {
+        // Required only for series-venture, with minlength 100
+        if (this.registrationType === 'series-venture') {
+          return value && value.length >= 100 && value.length <= 500;
+        }
+        // Allow empty string for other registration types
+        return value === '' || (value && value.length <= 500);
+      },
+      message: props =>
+        props.value.length === 0
+          ? 'Project description is required for series ventures'
+          : `Project description must be between 100 and 500 characters for series ventures`
+    },
     default: ''
   },
   guidedLabsInterest: {
     type: String,
-    minlength: 50,
-    maxlength: 500,
+    trim: true,
+    validate: {
+      validator: function (value) {
+        // Required only for series-venture, with minlength 50
+        if (this.registrationType === 'series-venture') {
+          return value && value.length >= 50 && value.length <= 500;
+        }
+        // Allow empty string for other registration types
+        return value === '' || (value && value.length <= 500);
+      },
+      message: props =>
+        props.value.length === 0
+          ? 'Guided labs interest is required for series ventures'
+          : `Guided labs interest must be between 50 and 500 characters for series ventures`
+    },
     default: ''
   },
-  
-  // Metadata
   submissionDate: {
     type: Date,
     default: Date.now
@@ -104,15 +117,14 @@ const registrationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for faster queries
+// Indexes and virtuals remain unchanged
 registrationSchema.index({ email: 1 });
 registrationSchema.index({ registrationType: 1 });
 registrationSchema.index({ submissionDate: -1 });
 registrationSchema.index({ ventureStage: 1 });
 registrationSchema.index({ fundingNeeds: 1 });
 
-// Virtual for formatted registration type
-registrationSchema.virtual('registrationTypeFormatted').get(function() {
+registrationSchema.virtual('registrationTypeFormatted').get(function () {
   const typeMap = {
     'anchor-partner': 'Anchor Partner',
     'series-venture': 'Series Venture',
@@ -121,8 +133,7 @@ registrationSchema.virtual('registrationTypeFormatted').get(function() {
   return typeMap[this.registrationType] || this.registrationType;
 });
 
-// Method to get sponsorship tier description
-registrationSchema.methods.getSponsorshipTierDescription = function() {
+registrationSchema.methods.getSponsorshipTierDescription = function () {
   const tierMap = {
     'tier1': 'Anchor Partner Tier 1 (₦40m+ / $26.6k+)',
     'tier2': 'Anchor Partner Tier 2 (₦25m-40m / $16.6k-26.6k)',
@@ -132,8 +143,7 @@ registrationSchema.methods.getSponsorshipTierDescription = function() {
   return tierMap[this.sponsorshipTier] || '';
 };
 
-// Method to get venture stage description
-registrationSchema.methods.getVentureStageDescription = function() {
+registrationSchema.methods.getVentureStageDescription = function () {
   const stageMap = {
     'idea': 'Idea Stage',
     'prototype': 'Prototype/MVP',
@@ -144,8 +154,7 @@ registrationSchema.methods.getVentureStageDescription = function() {
   return stageMap[this.ventureStage] || '';
 };
 
-// Method to get funding needs description
-registrationSchema.methods.getFundingNeedsDescription = function() {
+registrationSchema.methods.getFundingNeedsDescription = function () {
   const fundingMap = {
     'under-5m': 'Under ₦5M',
     '5m-10m': '₦5M - ₦10M',
